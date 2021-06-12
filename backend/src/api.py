@@ -3,15 +3,15 @@ from flask import Flask, request, jsonify, abort
 from sqlalchemy import exc
 import json
 from flask_cors import CORS
-from database.models import db_drop_and_create_all, setup_db, Drink
-from auth.auth import AuthError, requires_auth
+from .database.models import db_drop_and_create_all, setup_db, Drink
+from .auth.auth import AuthError, requires_auth
 
 app = Flask(__name__)
 setup_db(app)
 CORS(app)
 
 
-# db_drop_and_create_all()
+db_drop_and_create_all()
 
 # ROUTES
 
@@ -36,24 +36,21 @@ def retrieve_drinks():
 
 @app.route('/drinks-detail', methods=['GET'])
 @requires_auth(permission='get:drinks-detail')
-def get_drink_detail(jwt):
-    try:
-        drink_detail = Drink.query.all()
-        drink_detail = [drink.long() for drink in drink_detail]
-        return (jsonify({'success': True, 'drinks': drink_detail}), 200)
-    except:
+def get_drink_detail(payload):
+    drinks = Drink.query.all()
 
-        # if there is no drink detail return 404 error
 
-        if len(drink_detail) == 0:
-            abort(404)
+    return (jsonify({
+        'success': True, 
+        'drinks': [drink.long() for drink in drinks]
+        }), 200)
 
 
 # create a drink - requires authorization
 
 @app.route('/drinks', methods=['POST'])
 @requires_auth(permission='post:drinks')
-def add_drink(jwt):
+def add_drink(payload):
     body = request.get_json()
 
     new_title = body.get['title']
@@ -78,7 +75,7 @@ def add_drink(jwt):
 
 @app.route('/drinks/<int:drink_id>', methods=['PATCH'])
 @requires_auth(permission='patch:drinks')
-def update_drink(jwt, id):
+def update_drink(payload, id):
     data = request.get_json()
     drink = Drink.query.filter_by(id=int(id)).one_or_none()
 
@@ -107,7 +104,7 @@ def update_drink(jwt, id):
 
 @app.route('/drinks/<int:drink_id>', methods=['DELETE'])
 @requires_auth(permission='delete:drinks')
-def delete_drink(jwt, id):
+def delete_drink(payload, id):
 
     drink = Drink.query.filter(Drink.id == id).one_or_none()
 
@@ -149,7 +146,7 @@ def not_found(error):
 
 @app.errorhandler(500)
 def internal_server_error(error):
-    print error
+    print (error)
     return (jsonify({'success': False, 'error': 500,
             'message': 'internal server error'}), 500)
 
